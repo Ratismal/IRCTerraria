@@ -37,9 +37,15 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="TerrariaServer">
+      <HintPath>..\Terraria\TerrariaServer.exe</HintPath>
+    </Reference>
+    <Reference Include="TShockAPI">
+      <HintPath>..\Terraria\TShockAPI.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="IrcTerraria.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

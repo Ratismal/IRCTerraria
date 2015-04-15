@@ -88,8 +88,31 @@ namespace IRCTerraria
                         using (StreamReader sr = new StreamReader(stream))
                         {
                             string message = sr.ReadLine();
-                            string[] words = message.Split();
-                            Chat(Color.LightPink, words);
+                            if (message.Equals(".list"))
+                            {
+                                TSPlayer[] players = TShock.Players;
+                                string playerList = "Online (" + players.Length + "/8): ";
+                                for (int i = 0; i <= players.Length; i++)
+                                {
+                                    playerList = playerList + players[i].Name;
+                                }
+                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
+                                {
+                                    sw.WriteLine(playerList);
+                                }
+                            }
+                            else if (message.Equals(".help"))
+                            {
+                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
+                                {
+                                    sw.WriteLine("Valid commands: help, list");
+                                }
+                            }
+                            else
+                            {
+                                Chat(Color.LightPink, message);
+                            }
+                            
                         }
                     }
                 }
@@ -155,13 +178,8 @@ namespace IRCTerraria
                 }
             }
         }
-        private void Chat(Color color, string[] words)
+        private void Chat(Color color, string message)
         {
-            /* Put the string back together, seperating
-             * each word with a space.
-             */
-            String message = String.Join(" ", words);
-
             /* Send all players the message in the color
              * specified.
              */

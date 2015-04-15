@@ -101,11 +101,18 @@ namespace IRCTerraria
                                     sw.WriteLine(playerList);
                                 }
                             }
+                            else if (message.Equals(".version"))
+                            {
+                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
+                                {
+                                    sw.WriteLine("IRCTerraria is running on version: " + Version);
+                                }
+                            }
                             else if (message.Equals(".help"))
                             {
                                 using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
                                 {
-                                    sw.WriteLine("Valid commands: help, list");
+                                    sw.WriteLine("Valid commands: help, list, version");
                                 }
                             }
                             else
@@ -161,18 +168,16 @@ namespace IRCTerraria
             if (!args.Text.StartsWith("/"))
             {
                 args.Handled = true;
-                string[] words = args.Text.Split();
+                string words = args.Text;
+                words = player.Name + "> " + words;
 
-                string[] nWords = new string[words.Length + 1];
-                nWords[0] = player.Name + ">";
-                Array.Copy(words, 0, nWords, 1, words.Length);
                 using (NetworkStream stream = irc.GetStream())
                 {
                     using (StreamReader sr = new StreamReader(stream))
                     {
                         using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
                         {
-                            sw.WriteLine(nWords);
+                            sw.WriteLine(words);
                         }
                     }
                 }

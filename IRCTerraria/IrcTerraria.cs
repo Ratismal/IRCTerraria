@@ -30,10 +30,6 @@ namespace IRCTerraria
 
         private TcpClient irc;
 
-
-        public override void Initialize()
-        {
-        }
         public override Version Version
         {
             get { return new Version("1.0"); }

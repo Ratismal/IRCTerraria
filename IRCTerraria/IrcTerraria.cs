@@ -15,25 +15,31 @@ using TerrariaApi.Server;
 
 namespace IRCTerraria
 {
-    [ApiVersion(1, 14)]
+    [ApiVersion(1, 16)]
     public class IRCTerraria : TerrariaPlugin
     {
         private int chatIndex;
 
-        private String host = ConfigurationManager.AppSettings["host"];
-        private int port = Int32.Parse(ConfigurationManager.AppSettings["port"]);
+        //private String host = ConfigurationManager.AppSettings["host"];
+        //private int port = Convert.ToInt32(ConfigurationManager.AppSettings["port"]);
         //private String pass = null;
-        private String nick = ConfigurationManager.AppSettings["nick"];
+        //private String nick = ConfigurationManager.AppSettings["nick"];
         //private String user = "HUTerraria";
-        private String name = ConfigurationManager.AppSettings["name"];
-        private String channel = ConfigurationManager.AppSettings["channel"];
+        //private String name = ConfigurationManager.AppSettings["name"];
+        //private String channel = ConfigurationManager.AppSettings["channel"];
         //private bool ssl = false;
+
+        private String host = IRCTerrariaConfigs.Default.host;
+        private int port = IRCTerrariaConfigs.Default.port;
+        private String nick = IRCTerrariaConfigs.Default.nick;
+        private String name = IRCTerrariaConfigs.Default.name;
+        private String channel = IRCTerrariaConfigs.Default.channel;
 
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.0.2"); }
+            get { return new Version("1.0.3"); }
         }
         public override string Name
         {
@@ -56,6 +62,7 @@ namespace IRCTerraria
         }
         public override void Initialize()
         {
+            Console.Write("Initializing IRCTerraria\n");
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
             ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 

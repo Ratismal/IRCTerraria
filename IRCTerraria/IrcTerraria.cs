@@ -2,9 +2,11 @@
 using System.Linq;
 using System.ComponentModel;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.IO;
 using System.Configuration;
+using System.Threading;
 
 using TShockAPI;
 using TShockAPI.Extensions;
@@ -12,6 +14,8 @@ using TShockAPI.Extensions;
 using Terraria;
 using TerrariaApi;
 using TerrariaApi.Server;
+
+using IrcDotNet;
 
 namespace IRCTerraria
 {
@@ -35,11 +39,21 @@ namespace IRCTerraria
         private String name = IRCTerrariaConfigs.Default.name;
         private String channel = IRCTerrariaConfigs.Default.channel;
         */
+        public static StreamWriter writer;
+        NetworkStream stream;
+        StreamReader reader;
+        private String host;
+        private int port;
+        private String channel;
+        private String name;
+        private String nick;
+
+
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.0.5"); }
+            get { return new Version("1.0.6"); }
         }
         public override string Name
         {
@@ -64,7 +78,7 @@ namespace IRCTerraria
         {
             Console.Write("Initializing IRCTerraria\n");
 
-            
+
 
             if (!File.Exists("IRCTerrariaConfigs.settings"))
             {
@@ -75,87 +89,89 @@ namespace IRCTerraria
             configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
-                
-
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
             ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
-
+            connect(config);
+        }
+        private void connect(Configuration config)
+        {
             String host = config.AppSettings.Settings["host"].Value;
             int port = Convert.ToInt32(config.AppSettings.Settings["port"].Value);
             String nick = config.AppSettings.Settings["nick"].Value;
             String name = config.AppSettings.Settings["name"].Value;
             String channel = config.AppSettings.Settings["channel"].Value;
+            NetworkStream stream;
+            StreamReader reader;
 
-            this.irc = new TcpClient(host, port);
-
-            using (NetworkStream stream = irc.GetStream())
+            try
             {
-              
-                using (StreamReader sr = new StreamReader(stream))
+                irc = new TcpClient(host, port);
+                stream = irc.GetStream();
+                reader = new StreamReader(stream);
+                writer = new StreamWriter(stream);
+                writer.WriteLine("USER " + name + " 0 * :IRCTerraria Bot");
+                writer.Flush();
+                writer.WriteLine("NICK " + nick);
+                writer.Flush();
+                writer.WriteLine("JOIN " + channel);
+                writer.Flush();
+                while (true)
                 {
-                    
-                    using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
-                    {
-                        sw.WriteLine("NICK " + nick);
-                        sw.WriteLine("USER " + nick + "0 * :" + name);
-                        sw.WriteLine("JOIN " + channel);
-                    }
-                    
+                    getInput();
+                    // Close all streams
+                    writer.Close();
+                    reader.Close();
+                    irc.Close();
                 }
             }
-            
+            catch (Exception e)
+            {
+                // Show the exception, sleep for a while and try to establish a new connection to irc server
+                Console.WriteLine(e.ToString());
+                Thread.Sleep(5000);
+                string[] argv = { };
+                connect(config);
+            }
         }
+
         private void getInput()
         {
-            while (true)
+            String inputLine;
+            while ((inputLine = reader.ReadLine () ) != null)
             {
-                using (NetworkStream stream = irc.GetStream())
+                string message = reader.ReadLine();
+                if (message.Equals(".list"))
                 {
-                    if (stream.Length != 0)
+                    TSPlayer[] players = TShock.Players;
+                    string playerList = "Online (" + players.Length + "/8): ";
+                    for (int i = 0; i <= players.Length; i++)
                     {
-                        using (StreamReader sr = new StreamReader(stream))
-                        {
-                            string message = sr.ReadLine();
-                            if (message.Equals(".list"))
-                            {
-                                TSPlayer[] players = TShock.Players;
-                                string playerList = "Online (" + players.Length + "/8): ";
-                                for (int i = 0; i <= players.Length; i++)
-                                {
-                                    playerList = playerList + players[i].Name;
-                                }
-                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
-                                {
-                                    sw.WriteLine(playerList);
-                                }
-                            }
-                            else if (message.Equals(".version"))
-                            {
-                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
-                                {
-                                    sw.WriteLine("IRCTerraria is running on version: " + Version);
-                                }
-                            }
-                            else if (message.Equals(".help"))
-                            {
-                                using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
-                                {
-                                    sw.WriteLine("Valid commands: help, list, version");
-                                }
-                            }
-                            else
-                            {
-                                Chat(Color.LightPink, message);
-                            }
-                            
-                        }
+                        playerList = playerList + players[i].Name;
                     }
+                    writer.WriteLine(playerList);
+                    writer.Flush();
                 }
+                else if (message.Equals(".version"))
+                {
+                    writer.WriteLine("IRCTerraria is running on version: " + Version);
+                    writer.Flush();
+                }
+                else if (message.Equals(".help"))
+                {
+                    writer.WriteLine("Valid commands: help, list, version");
+                    writer.Flush();
+                }
+                else
+                {
+                    Chat(Color.LightPink, message);
+                }
+
+
             }
         }
         private void OnLeave(LeaveEventArgs args)
         {
-            
+
         }
         protected override void Dispose(bool disposing)
         {
@@ -199,16 +215,8 @@ namespace IRCTerraria
                 string words = args.Text;
                 words = player.Name + "> " + words;
 
-                using (NetworkStream stream = irc.GetStream())
-                {
-                    using (StreamReader sr = new StreamReader(stream))
-                    {
-                        using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
-                        {
-                            sw.WriteLine(words);
-                        }
-                    }
-                }
+                writer.WriteLine(words);
+                writer.Flush();
             }
         }
         private void Chat(Color color, string message)

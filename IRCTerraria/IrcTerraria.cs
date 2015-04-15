@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.IO;
+using System.Configuration;
 
 using TShockAPI;
 using TShockAPI.Extensions;
@@ -19,20 +20,20 @@ namespace IRCTerraria
     {
         private int chatIndex;
 
-        private String host = "irc.esper.net";
-        private int port = 6667;
-        private String pass = null;
-        private String nick = "HU_Terraria";
-        private String user = "HUTerraria";
-        private String name = "IRCTerraria";
-        private String channel = "#hysteriaunleashed";
-        private bool ssl = false;
+        private String host = ConfigurationManager.AppSettings["host"];
+        private int port = Int32.Parse(ConfigurationManager.AppSettings["port"]);
+        //private String pass = null;
+        private String nick = ConfigurationManager.AppSettings["nick"];
+        //private String user = "HUTerraria";
+        private String name = ConfigurationManager.AppSettings["name"];
+        private String channel = ConfigurationManager.AppSettings["channel"];
+        //private bool ssl = false;
 
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.0"); }
+            get { return new Version("1.0.1"); }
         }
         public override string Name
         {

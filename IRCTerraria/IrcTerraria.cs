@@ -28,18 +28,18 @@ namespace IRCTerraria
         //private String name = ConfigurationManager.AppSettings["name"];
         //private String channel = ConfigurationManager.AppSettings["channel"];
         //private bool ssl = false;
-
+        /*
         private String host = IRCTerrariaConfigs.Default.host;
         private int port = IRCTerrariaConfigs.Default.port;
         private String nick = IRCTerrariaConfigs.Default.nick;
         private String name = IRCTerrariaConfigs.Default.name;
         private String channel = IRCTerrariaConfigs.Default.channel;
-
+        */
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.0.3"); }
+            get { return new Version("1.0.5"); }
         }
         public override string Name
         {
@@ -63,10 +63,30 @@ namespace IRCTerraria
         public override void Initialize()
         {
             Console.Write("Initializing IRCTerraria\n");
+
+            
+
+            if (!File.Exists("IRCTerrariaConfigs.settings"))
+            {
+                CreateConfig();
+            }
+
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+
+                
+
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
             ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 
-            this.irc = new TcpClient(this.host, this.port);
+            String host = config.AppSettings.Settings["host"].Value;
+            int port = Convert.ToInt32(config.AppSettings.Settings["port"].Value);
+            String nick = config.AppSettings.Settings["nick"].Value;
+            String name = config.AppSettings.Settings["name"].Value;
+            String channel = config.AppSettings.Settings["channel"].Value;
+
+            this.irc = new TcpClient(host, port);
 
             using (NetworkStream stream = irc.GetStream())
             {
@@ -76,9 +96,9 @@ namespace IRCTerraria
                     
                     using (StreamWriter sw = new StreamWriter(stream) { NewLine = "\r\n", AutoFlush = true })
                     {
-                        sw.WriteLine("NICK " + this.nick);
-                        sw.WriteLine("USER " + this.nick + "0 * :" + this.name);
-                        sw.WriteLine("JOIN " + this.channel);
+                        sw.WriteLine("NICK " + nick);
+                        sw.WriteLine("USER " + nick + "0 * :" + name);
+                        sw.WriteLine("JOIN " + channel);
                     }
                     
                 }
@@ -197,6 +217,20 @@ namespace IRCTerraria
              * specified.
              */
             TSPlayer.All.SendMessage(message, color);
+        }
+        private void CreateConfig()
+        {
+            //File.Create("IRCTerrariaConfigs.settings");
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            config.AppSettings.Settings.Add("host", "irc.esper.net");
+            config.AppSettings.Settings.Add("port", "6667");
+            config.AppSettings.Settings.Add("nick", "IRCTerraria_Client");
+            config.AppSettings.Settings.Add("name", "ITCTerraria");
+            config.AppSettings.Settings.Add("channel", "#ExampleChannel");
+            config.Save(ConfigurationSaveMode.Full);
+            return;
         }
     }
 }

@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="IRCTerraria" GeneratedClassName="IRCTerrariaConfigs">
+  <Profiles />
+  <Settings>
+    <Setting Name="host" Type="System.String" Scope="User">
+      <Value Profile="(Default)">irc.esper.net</Value>
+    </Setting>
+    <Setting Name="port" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6667</Value>
+    </Setting>
+    <Setting Name="nick" Type="System.String" Scope="User">
+      <Value Profile="(Default)">IRCTerraria_Client</Value>
+    </Setting>
+    <Setting Name="name" Type="System.String" Scope="User">
+      <Value Profile="(Default)">IRCTerraria</Value>
+    </Setting>
+    <Setting Name="channel" Type="System.String" Scope="User">
+      <Value Profile="(Default)">#ExampleChannel</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

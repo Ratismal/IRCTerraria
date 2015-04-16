@@ -80,13 +80,13 @@ namespace IndigoIRC
 
 
 
-            if (!File.Exists("IndigoIRC.settings"))
+            if (!File.Exists("IIRC/IndigoIRC.settings"))
             {
                 CreateConfig();
             }
 
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
@@ -105,7 +105,7 @@ namespace IndigoIRC
         private void connect()
         {
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
             //Thread.Sleep(8000);
@@ -282,7 +282,7 @@ namespace IndigoIRC
              * Always make sure to check the chat to see if it has been handled
              */
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             String channel = config.AppSettings.Settings["channel"].Value;
 
@@ -321,9 +321,9 @@ namespace IndigoIRC
         }
         private void CreateConfig()
         {
-            //File.Create("IndigoIRC.settings");
+            //File.Create("IIRC/IndigoIRC.settings");
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             config.AppSettings.Settings.Add("host", "irc.esper.net");
             config.AppSettings.Settings.Add("port", "6667");
@@ -346,7 +346,7 @@ namespace IndigoIRC
         private void OnJoin(JoinEventArgs args)
         {
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             String channel = config.AppSettings.Settings["channel"].Value;
 
@@ -362,7 +362,7 @@ namespace IndigoIRC
         private void OnLeave(LeaveEventArgs args)
         {
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IndigoIRC.settings";
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             String channel = config.AppSettings.Settings["channel"].Value;
             

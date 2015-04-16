@@ -19,7 +19,7 @@ using IrcDotNet;
 
 namespace IRCTerraria
 {
-    [ApiVersion(1, 16)]
+    [ApiVersion(1, 17)]
     public class IRCTerraria : TerrariaPlugin
     {
         private int chatIndex;
@@ -53,7 +53,7 @@ namespace IRCTerraria
 
         public override Version Version
         {
-            get { return new Version("1.0.6"); }
+            get { return new Version("1.1.0"); }
         }
         public override string Name
         {
@@ -70,9 +70,9 @@ namespace IRCTerraria
         public IRCTerraria(Main game)
             : base(game)
         {
-            Order = 1;
+            Order = 0;
 
-            chatIndex = 0;
+            //chatIndex = 0;
         }
         public override void Initialize()
         {
@@ -90,89 +90,150 @@ namespace IRCTerraria
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
-            ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
-            connect(config);
+
+            System.Threading.Thread myThread;
+            myThread = new Thread(new ThreadStart(connect));
+
+            myThread.IsBackground = true;
+            Console.WriteLine("[IRCTerraria] Starting IRC thread");
+
+            myThread.Start();
+
         }
-        private void connect(Configuration config)
+        private void connect()
         {
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+
+            //Thread.Sleep(8000);
+
             String host = config.AppSettings.Settings["host"].Value;
             int port = Convert.ToInt32(config.AppSettings.Settings["port"].Value);
             String nick = config.AppSettings.Settings["nick"].Value;
             String name = config.AppSettings.Settings["name"].Value;
             String channel = config.AppSettings.Settings["channel"].Value;
+            String user = config.AppSettings.Settings["user"].Value;
             NetworkStream stream;
             StreamReader reader;
-
+            Console.WriteLine("[IRCTerraria] Connecting to " + host + ":" + port + " on channel " + channel);
+            //Console.Write(host);
+            String inputLine;
             try
             {
-                irc = new TcpClient(host, port);
-                stream = irc.GetStream();
-                reader = new StreamReader(stream);
-                writer = new StreamWriter(stream);
-                writer.WriteLine("USER " + name + " 0 * :IRCTerraria Bot");
-                writer.Flush();
-                writer.WriteLine("NICK " + nick);
-                writer.Flush();
-                writer.WriteLine("JOIN " + channel);
-                writer.Flush();
                 while (true)
                 {
-                    getInput();
+                    irc = new TcpClient(host, port);
+                    stream = irc.GetStream();
+                    reader = new StreamReader(stream);
+                    writer = new StreamWriter(stream);
+                    writer.WriteLine("NICK " + nick);
+                    writer.Flush();
+                    writer.WriteLine(user);
+                    writer.Flush();
+                    while ((inputLine = reader.ReadLine()) != null)
+                    {
+                        //Console.WriteLine("<-" + inputLine);
+
+                        // Split the lines sent from the server by spaces. This seems the easiest way to parse them.
+                        string[] splitInput = inputLine.Split(new Char[] { ' ' });
+
+                        if (splitInput[0] == "PING")
+                        {
+                            string PongReply = splitInput[1];
+                            //Console.WriteLine("->PONG " + PongReply);
+                            writer.WriteLine("PONG " + PongReply);
+                            writer.Flush();
+                            continue;
+                        }
+                        if (splitInput[1].Equals("PRIVMSG"))
+                        {
+                            String message2 = splitInput[3];
+                            //Console.WriteLine(message2 + "hi");
+                            String playerList;
+                            if (splitInput[3].Equals(":.list"))
+                            {
+                                
+                                TSPlayer[] players = TShock.Players;
+                                if (players[0] != null)
+                                {
+                                    playerList = "Online (" + players.Length + "/8): ";
+                                    for (int i = 0; i <= players.Length; i++)
+                                    {
+                                        playerList = playerList + players[i].Name;
+                                    }
+                                }
+                                else
+                                {
+                                    playerList = "Online (0/8): ";
+                                }
+                                writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
+                                
+                                //writer.WriteLine("PRIVMSG " + channel + " :Online (3/8): XXXXXXXXXX, XXXXXXX, XXXX");
+                                writer.Flush();
+                            }
+                            else if (splitInput[3].Equals(":.version"))
+                            {
+                                writer.WriteLine("PRIVMSG " + channel + " :IRCTerraria is running on version: " + Version);
+                                writer.Flush();
+                            }
+                            else if (splitInput[3].Equals(":.help"))
+                            {
+                                writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
+                                writer.Flush();
+                            }
+                            else
+                            {
+                                int loc = splitInput[0].IndexOf("!~");
+                                splitInput[0] = splitInput[0].Substring(0, loc);
+                                String message = String.Join(" ", splitInput);
+                                message = ReplaceFirst(message, "PRIVMSG", "");
+                                message = ReplaceFirst(message, channel, "");
+                                message = ReplaceFirst(message, "   :", "> ");
+                                Console.WriteLine(message);
+                                //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
+                                writer.Flush();
+                                Chat(Color.LightPink, message);
+                            }
+
+                        }
+                        else
+                        {
+                            Console.WriteLine(inputLine);
+                        }
+                        switch (splitInput[1])
+                        {
+                            // This is the 'raw' number, put out by the server. Its the first one
+                            // so I figured it'd be the best time to send the join command.
+                            // I don't know if this is standard practice or not.
+                            case "001":
+                                string JoinString = "JOIN " + channel;
+                                writer.WriteLine(JoinString);
+                                writer.Flush();
+                                break;
+                            default:
+                                break;
+                        }
+
+                    }
                     // Close all streams
                     writer.Close();
                     reader.Close();
                     irc.Close();
                 }
             }
+
             catch (Exception e)
             {
                 // Show the exception, sleep for a while and try to establish a new connection to irc server
                 Console.WriteLine(e.ToString());
-                Thread.Sleep(5000);
+                //Thread.Sleep(5000);
                 string[] argv = { };
-                connect(config);
+                connect();
             }
-        }
-
-        private void getInput()
-        {
-            String inputLine;
-            while ((inputLine = reader.ReadLine () ) != null)
-            {
-                string message = reader.ReadLine();
-                if (message.Equals(".list"))
-                {
-                    TSPlayer[] players = TShock.Players;
-                    string playerList = "Online (" + players.Length + "/8): ";
-                    for (int i = 0; i <= players.Length; i++)
-                    {
-                        playerList = playerList + players[i].Name;
-                    }
-                    writer.WriteLine(playerList);
-                    writer.Flush();
-                }
-                else if (message.Equals(".version"))
-                {
-                    writer.WriteLine("IRCTerraria is running on version: " + Version);
-                    writer.Flush();
-                }
-                else if (message.Equals(".help"))
-                {
-                    writer.WriteLine("Valid commands: help, list, version");
-                    writer.Flush();
-                }
-                else
-                {
-                    Chat(Color.LightPink, message);
-                }
-
-
-            }
-        }
-        private void OnLeave(LeaveEventArgs args)
-        {
 
         }
+
         protected override void Dispose(bool disposing)
         {
             /* Ensure that we are actually disposing.
@@ -183,7 +244,6 @@ namespace IRCTerraria
                  * from the hook.
                  */
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChat);
-                ServerApi.Hooks.ServerLeave.Deregister(this, OnLeave);
             }
             base.Dispose(disposing);
         }
@@ -211,11 +271,11 @@ namespace IRCTerraria
             }
             if (!args.Text.StartsWith("/"))
             {
-                args.Handled = true;
+                //args.Handled = true;
                 string words = args.Text;
                 words = player.Name + "> " + words;
 
-                writer.WriteLine(words);
+                writer.WriteLine("PRIVMSG " + channel + " :what is going on pls halp");
                 writer.Flush();
             }
         }
@@ -236,9 +296,20 @@ namespace IRCTerraria
             config.AppSettings.Settings.Add("port", "6667");
             config.AppSettings.Settings.Add("nick", "IRCTerraria_Client");
             config.AppSettings.Settings.Add("name", "ITCTerraria");
-            config.AppSettings.Settings.Add("channel", "#ExampleChannel");
+            config.AppSettings.Settings.Add("channel", "#examplechannel");
+            config.AppSettings.Settings.Add("user", "USER IRCTerrariaBot 0 * :IRCTerraria");
             config.Save(ConfigurationSaveMode.Full);
             return;
         }
+        public string ReplaceFirst(string text, string search, string replace)
+        {
+            int pos = text.IndexOf(search);
+            if (pos < 0)
+            {
+                return text;
+            }
+            return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
+        }
     }
+
 }

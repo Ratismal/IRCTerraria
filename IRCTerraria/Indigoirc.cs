@@ -84,22 +84,25 @@ namespace IndigoIRC
             {
                 CreateConfig();
             }
+            else
+            {
+                ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+                configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
+                Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+                ServerApi.Hooks.ServerChat.Register(this, OnChat);
+                ServerApi.Hooks.ServerJoin.Register(this, OnJoin);
+                ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 
-            ServerApi.Hooks.ServerChat.Register(this, OnChat);
-            ServerApi.Hooks.ServerJoin.Register(this, OnJoin);
-            ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
+                System.Threading.Thread myThread;
+                myThread = new Thread(new ThreadStart(connect));
 
-            System.Threading.Thread myThread;
-            myThread = new Thread(new ThreadStart(connect));
+                myThread.IsBackground = true;
+                Console.WriteLine("[IndigoIRC] Starting IRC thread");
 
-            myThread.IsBackground = true;
-            Console.WriteLine("[IndigoIRC] Starting IRC thread");
-
-            myThread.Start();
+                myThread.Start();
+            }
+            
 
         }
         private void connect()
@@ -321,6 +324,10 @@ namespace IndigoIRC
         }
         private void CreateConfig()
         {
+            Console.WriteLine("[IndigoIRC] No config file found!");
+            Console.WriteLine("[IndigoIRC] Generating config file from defaults.");
+            Console.WriteLine("[IndigoIRC] Please go to IIRC/IndigoIRC.settings and change the settings. (REQUIRED)");
+            Console.WriteLine("[IndigoIRC] This plugin will be activated upon the next reboot.");
             //File.Create("IIRC/IndigoIRC.settings");
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
             configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
@@ -328,7 +335,7 @@ namespace IndigoIRC
             config.AppSettings.Settings.Add("host", "irc.esper.net");
             config.AppSettings.Settings.Add("port", "6667");
             config.AppSettings.Settings.Add("nick", "IndigoIRC_Client");
-            config.AppSettings.Settings.Add("name", "ITCTerraria");
+            config.AppSettings.Settings.Add("name", "IIRCTerraria");
             config.AppSettings.Settings.Add("channel", "#examplechannel");
             config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
             config.Save(ConfigurationSaveMode.Full);

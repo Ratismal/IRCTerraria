@@ -1,6 +1,3 @@
-C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IRCTerraria.dll.config
-C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IRCTerraria.dll
-C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IRCTerraria.pdb
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IrcDotNet.Common.dll
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IrcDotNet.dll
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\TerrariaServer.exe
@@ -14,5 +11,8 @@ C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IrcDotNe
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IrcDotNet.Common.pdb
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IrcDotNet.Common.xml
 C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\obj\Debug\IndigoIRC.csprojResolveAssemblyReference.cache
-C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\obj\Debug\IRCTerraria.dll
-C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\obj\Debug\IRCTerraria.pdb
+C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IndigoIRC.dll.config
+C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IndigoIRC.dll
+C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\bin\Debug\IndigoIRC.pdb
+C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\obj\Debug\IndigoIRC.dll
+C:\Users\Other\Dropbox\Workspace - C#\IRCTerraria\IRCTerraria\obj\Debug\IndigoIRC.pdb

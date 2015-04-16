@@ -23,7 +23,7 @@ namespace IRCTerraria
     public class IRCTerraria : TerrariaPlugin
     {
         private int chatIndex;
-
+        public static List<Player> Players = new List<Player>();
         //private String host = ConfigurationManager.AppSettings["host"];
         //private int port = Convert.ToInt32(ConfigurationManager.AppSettings["port"]);
         //private String pass = null;
@@ -53,7 +53,7 @@ namespace IRCTerraria
 
         public override Version Version
         {
-            get { return new Version("1.1.1"); }
+            get { return new Version("1.5.0"); }
         }
         public override string Name
         {
@@ -155,12 +155,29 @@ namespace IRCTerraria
                             String playerList;
                             if (splitInput[3].Equals(":.list"))
                             {
-                                
+                                //TSPlayer player = TShock.Players[args.Who];
                                 TSPlayer[] players = TShock.Players;
+                                
                                 if (players[0] != null)
                                 {
-                                    Console.WriteLine(players[0].Name);
-                                    playerList = "Online (" + players.Length + "/8): ";
+                                   // Console.WriteLine(players[0].Name);
+                                    
+                                    playerList = "Online (" + Players.Count + "/8): ";
+                                    for (int i = 0; i <= Players.Count - 1; i++)
+                                    {
+                                        //TSPlayer player = TShock.Players.
+                                        int id = Players[i].Index;
+                                        TSPlayer currentPlayer = TShock.Players[id];
+                                        if (i == Players.Count - 1)
+                                        {
+                                            playerList = playerList + currentPlayer.Name;
+                                        }
+                                        else
+                                        {
+                                            playerList = playerList + currentPlayer.Name + ", ";
+                                        }
+                                    }
+                                    //playerList = "Online (" + players.Length + "/8): ";
                                     //for (int i = 0; i <= players.Length - 1; i++)
                                     //{
                                     //    playerList = playerList + players[i].Name + ", ";
@@ -334,6 +351,8 @@ namespace IRCTerraria
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
+            lock (Players)
+                Players.Add(new Player(args.Who));
         }
         private void OnLeave(LeaveEventArgs args)
         {
@@ -348,7 +367,29 @@ namespace IRCTerraria
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
+            lock (Players)
+            {
+                for (int i = 0; i < Players.Count; i++)
+                {
+                    if (Players[i].Index == args.Who)
+                    {
+                        Players.RemoveAt(i);
+                        break; //Found the player, break.
+                    }
+                }
+            }
         }
     }
+    public class Player
+    {
+        public int Index { get; set; }
+        public TSPlayer TSPlayer { get { return TShock.Players[Index]; } }
+        
+        //Add other variables here - MAKE SURE YOU DON'T MAKE THEM STATIC
 
+        public Player(int index)
+        {
+            Index = index;
+        }
+    }
 }

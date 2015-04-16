@@ -208,7 +208,7 @@ namespace IndigoIRC
                             else if (splitInput[0].Contains("!~"))
                             {
                                 int loc = splitInput[0].IndexOf("!~");
-                                Console.WriteLine("Location of \"!~\": " + loc);
+                                //Console.WriteLine("Location of \"!~\": " + loc);
                                 if (loc > 0)
                                 {
                                     splitInput[0] = splitInput[0].Substring(0, loc);

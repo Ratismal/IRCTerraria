@@ -53,7 +53,7 @@ namespace IRCTerraria
 
         public override Version Version
         {
-            get { return new Version("1.5.1"); }
+            get { return new Version("1.5.2"); }
         }
         public override string Name
         {
@@ -146,9 +146,9 @@ namespace IRCTerraria
                             //Console.WriteLine("->PONG " + PongReply);
                             writer.WriteLine("PONG " + PongReply);
                             writer.Flush();
-                            continue;
+                            //continue;
                         }
-                        if (splitInput[1].Equals("PRIVMSG"))
+                        else if (splitInput[1].Equals("PRIVMSG"))
                         {
                             String message2 = splitInput[3];
                             //Console.WriteLine(message2 + "hi");
@@ -161,8 +161,8 @@ namespace IRCTerraria
                                 if (players[0] != null)
                                 {
                                    // Console.WriteLine(players[0].Name);
-                                    
-                                    playerList = "Online (" + Players.Count + "/8): ";
+
+                                    playerList = "Online (" + Players.Count + "/" + TShock.Config.MaxSlots + "): ";
                                     for (int i = 0; i <= Players.Count - 1; i++)
                                     {
                                         //TSPlayer player = TShock.Players.
@@ -185,7 +185,7 @@ namespace IRCTerraria
                                 }
                                 else
                                 {
-                                    playerList = "Online (0/8): ";
+                                    playerList = "Online (0/" + TShock.Config.MaxSlots + "): ";
                                 }
                                 writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
                                 
@@ -202,20 +202,24 @@ namespace IRCTerraria
                                 writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
                                 writer.Flush();
                             }
-                            else
+                            else if (splitInput[0].Contains("!~"))
                             {
                                 int loc = splitInput[0].IndexOf("!~");
-                                splitInput[0] = splitInput[0].Substring(0, loc);
-                                String message = String.Join(" ", splitInput);
-                                message = ReplaceFirst(message, "PRIVMSG", "");
-                                message = ReplaceFirst(message, channel, "");
-                                message = ReplaceFirst(message, "   :", "> ");
-                                Console.WriteLine(message);
-                                //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
-                                //writer.Flush();
-                                message = ReplaceFirst(message, ":", "");
-                                message = "[IRC] " + message;
-                                Chat(Color.LightPink, message);
+                                Console.WriteLine("Location of \"!~\": " + loc);
+                                if (loc > 0)
+                                {
+                                    splitInput[0] = splitInput[0].Substring(0, loc);
+                                    String message = String.Join(" ", splitInput);
+                                    message = ReplaceFirst(message, "PRIVMSG", "");
+                                    message = ReplaceFirst(message, channel, "");
+                                    message = ReplaceFirst(message, "   :", "> ");
+                                    Console.WriteLine(message);
+                                    //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
+                                    //writer.Flush();
+                                    message = ReplaceFirst(message, ":", "");
+                                    message = "[IRC] " + message;
+                                    Chat(Color.LightPink, message);
+                                }
                             }
 
                         }
@@ -365,7 +369,7 @@ namespace IRCTerraria
             TSPlayer player = TShock.Players[args.Who];
 
             String words = player.Name + " left the game.";
-
+            
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
             lock (Players)

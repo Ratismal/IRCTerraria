@@ -53,7 +53,7 @@ namespace IRCTerraria
 
         public override Version Version
         {
-            get { return new Version("1.5.0"); }
+            get { return new Version("1.5.1"); }
         }
         public override string Name
         {
@@ -214,6 +214,7 @@ namespace IRCTerraria
                                 //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
                                 //writer.Flush();
                                 message = ReplaceFirst(message, ":", "");
+                                message = "[IRC] " + message;
                                 Chat(Color.LightPink, message);
                             }
 
@@ -347,7 +348,7 @@ namespace IRCTerraria
 
             TSPlayer player = TShock.Players[args.Who];
 
-            String words = player.Name + " has joined the game.";
+            String words = player.Name + " joined the game.";
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
@@ -363,7 +364,7 @@ namespace IRCTerraria
             
             TSPlayer player = TShock.Players[args.Who];
 
-            String words = player.Name + " has left the game.";
+            String words = player.Name + " left the game.";
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();

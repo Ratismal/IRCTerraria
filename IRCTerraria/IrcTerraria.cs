@@ -53,7 +53,7 @@ namespace IRCTerraria
 
         public override Version Version
         {
-            get { return new Version("1.1.0"); }
+            get { return new Version("1.1.1"); }
         }
         public override string Name
         {
@@ -90,6 +90,8 @@ namespace IRCTerraria
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
             ServerApi.Hooks.ServerChat.Register(this, OnChat);
+            ServerApi.Hooks.ServerJoin.Register(this, OnJoin);
+            ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 
             System.Threading.Thread myThread;
             myThread = new Thread(new ThreadStart(connect));
@@ -157,11 +159,12 @@ namespace IRCTerraria
                                 TSPlayer[] players = TShock.Players;
                                 if (players[0] != null)
                                 {
+                                    Console.WriteLine(players[0].Name);
                                     playerList = "Online (" + players.Length + "/8): ";
-                                    for (int i = 0; i <= players.Length; i++)
-                                    {
-                                        playerList = playerList + players[i].Name;
-                                    }
+                                    //for (int i = 0; i <= players.Length - 1; i++)
+                                    //{
+                                    //    playerList = playerList + players[i].Name + ", ";
+                                    //}
                                 }
                                 else
                                 {
@@ -192,7 +195,8 @@ namespace IRCTerraria
                                 message = ReplaceFirst(message, "   :", "> ");
                                 Console.WriteLine(message);
                                 //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
-                                writer.Flush();
+                                //writer.Flush();
+                                message = ReplaceFirst(message, ":", "");
                                 Chat(Color.LightPink, message);
                             }
 
@@ -244,6 +248,8 @@ namespace IRCTerraria
                  * from the hook.
                  */
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChat);
+                ServerApi.Hooks.ServerJoin.Deregister(this, OnJoin);
+                ServerApi.Hooks.ServerLeave.Deregister(this, OnLeave);
             }
             base.Dispose(disposing);
         }
@@ -253,6 +259,11 @@ namespace IRCTerraria
              * and the player's chat will not be managed by this plugin
              * Always make sure to check the chat to see if it has been handled
              */
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            String channel = config.AppSettings.Settings["channel"].Value;
+
             if (args.Handled)
             {
                 return;
@@ -266,7 +277,7 @@ namespace IRCTerraria
              */
             if (player == null)
             {
-                args.Handled = true;
+                //args.Handled = true;
                 return;
             }
             if (!args.Text.StartsWith("/"))
@@ -275,7 +286,7 @@ namespace IRCTerraria
                 string words = args.Text;
                 words = player.Name + "> " + words;
 
-                writer.WriteLine("PRIVMSG " + channel + " :what is going on pls halp");
+                writer.WriteLine("PRIVMSG " + channel + " :" + words);
                 writer.Flush();
             }
         }
@@ -309,6 +320,34 @@ namespace IRCTerraria
                 return text;
             }
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
+        }
+        private void OnJoin(JoinEventArgs args)
+        {
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            String channel = config.AppSettings.Settings["channel"].Value;
+
+            TSPlayer player = TShock.Players[args.Who];
+
+            String words = player.Name + " has joined the game.";
+
+            writer.WriteLine("PRIVMSG " + channel + " :" + words);
+            writer.Flush();
+        }
+        private void OnLeave(LeaveEventArgs args)
+        {
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IRCTerrariaConfigs.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            String channel = config.AppSettings.Settings["channel"].Value;
+            
+            TSPlayer player = TShock.Players[args.Who];
+
+            String words = player.Name + " has left the game.";
+
+            writer.WriteLine("PRIVMSG " + channel + " :" + words);
+            writer.Flush();
         }
     }
 

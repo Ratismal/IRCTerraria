@@ -24,6 +24,7 @@ namespace IndigoIRC
     {
         private int chatIndex;
         public static List<Player> Players = new List<Player>();
+        //public static TimeSpan currentTime = new TimeSpan();
         //private String host = ConfigurationManager.AppSettings["host"];
         //private int port = Convert.ToInt32(ConfigurationManager.AppSettings["port"]);
         //private String pass = null;
@@ -40,6 +41,7 @@ namespace IndigoIRC
         private String channel = IndigoIRC.Default.channel;
         */
         public static StreamWriter writer;
+        /*
         NetworkStream stream;
         StreamReader reader;
         private String host;
@@ -47,13 +49,14 @@ namespace IndigoIRC
         private String channel;
         private String name;
         private String nick;
-
+         * */
+        public TimeSpan initTime;
 
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.5.3"); }
+            get { return new Version("1.5.4"); }
         }
         public override string Name
         {
@@ -78,13 +81,23 @@ namespace IndigoIRC
         {
             Console.Write("Initializing IndigoIRC\n");
 
+            //Store current time to a variable, used later for calculating uptime
+            this.initTime = DateTime.Now.TimeOfDay;
+            this.initTime = this.initTime + TimeSpan.FromDays(DateTime.Now.Day);
+            //Console.WriteLine(this.initTime.Days);
+            //Console.WriteLine(this.initTime.Hours);
+            //Console.WriteLine(this.initTime.Minutes);
+            //Console.WriteLine(this.initTime.Seconds);
 
-
+            Commands.ChatCommands.Add(new Command("indigoirc.irc", IIRC, "irc"));
+            
+            
+            //creates config file and bypasses starting the connection thread if config file doesn't exist
             if (!File.Exists("IIRC/IndigoIRC.settings"))
             {
                 CreateConfig();
             }
-            else
+            else //config file exists, starting connection thread
             {
                 ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
                 configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
@@ -107,6 +120,7 @@ namespace IndigoIRC
         }
         private void connect()
         {
+            
             ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
             configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
             Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
@@ -195,6 +209,18 @@ namespace IndigoIRC
                                 //writer.WriteLine("PRIVMSG " + channel + " :Online (3/8): XXXXXXXXXX, XXXXXXX, XXXX");
                                 writer.Flush();
                             }
+                            else if (splitInput[3].Equals(":.uptime"))
+                            {
+                                //DateTime.Now.
+                                TimeSpan currTime = DateTime.Now.TimeOfDay;
+                                currTime = currTime + TimeSpan.FromDays(DateTime.Now.Day);
+                                int day = currTime.Days - this.initTime.Days;
+                                int hour = currTime.Hours - this.initTime.Hours;
+                                int minute = currTime.Minutes - this.initTime.Minutes;
+                                int second = currTime.Seconds - this.initTime.Seconds;
+                                writer.WriteLine("PRIVMSG " + channel + " :Server uptime: " + day + " days " + hour + " hours " + minute + " minutes " + second + " seconds.");
+                                writer.Flush();
+                            }
                             else if (splitInput[3].Equals(":.version"))
                             {
                                 writer.WriteLine("PRIVMSG " + channel + " :IndigoIRC is running on version: " + Version);
@@ -205,9 +231,9 @@ namespace IndigoIRC
                                 writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
                                 writer.Flush();
                             }
-                            else if (splitInput[0].Contains("!~"))
+                            else if (splitInput[0].Contains("!"))
                             {
-                                int loc = splitInput[0].IndexOf("!~");
+                                int loc = splitInput[0].IndexOf("!");
                                 //Console.WriteLine("Location of \"!~\": " + loc);
                                 if (loc > 0)
                                 {
@@ -324,6 +350,7 @@ namespace IndigoIRC
         }
         private void CreateConfig()
         {
+            
             Console.WriteLine("[IndigoIRC] No config file found!");
             Console.WriteLine("[IndigoIRC] Generating config file from defaults.");
             Console.WriteLine("[IndigoIRC] Please go to IIRC/IndigoIRC.settings and change the settings. (REQUIRED)");
@@ -391,12 +418,18 @@ namespace IndigoIRC
                 }
             }
         }
+        private void IIRC(CommandArgs args)
+        {
+            if (args.Parameters.Count == 0)
+            {
+                args.Player.SendMessage("hi", 96, 245, 88);
+            }
+        }
     }
     public class Player
     {
         public int Index { get; set; }
         public TSPlayer TSPlayer { get { return TShock.Players[Index]; } }
-        
         //Add other variables here - MAKE SURE YOU DON'T MAKE THEM STATIC
 
         public Player(int index)

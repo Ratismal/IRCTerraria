@@ -56,7 +56,7 @@ namespace IndigoIRC
 
         public override Version Version
         {
-            get { return new Version("1.5.4"); }
+            get { return new Version("1.5.6"); }
         }
         public override string Name
         {
@@ -142,8 +142,8 @@ namespace IndigoIRC
             {
                 while (true)
                 {
-                    irc = new TcpClient(host, port);
-                    stream = irc.GetStream();
+                    this.irc = new TcpClient(host, port);
+                    stream = this.irc.GetStream();
                     reader = new StreamReader(stream);
                     writer = new StreamWriter(stream);
                     writer.WriteLine("NICK " + nick);
@@ -214,10 +214,11 @@ namespace IndigoIRC
                                 //DateTime.Now.
                                 TimeSpan currTime = DateTime.Now.TimeOfDay;
                                 currTime = currTime + TimeSpan.FromDays(DateTime.Now.Day);
-                                int day = currTime.Days - this.initTime.Days;
-                                int hour = currTime.Hours - this.initTime.Hours;
-                                int minute = currTime.Minutes - this.initTime.Minutes;
-                                int second = currTime.Seconds - this.initTime.Seconds;
+                                TimeSpan remainingTime = CalcTime(currTime);
+                                int day = remainingTime.Days;
+                                int hour = remainingTime.Hours;
+                                int minute = remainingTime.Minutes;
+                                int second = remainingTime.Seconds;
                                 writer.WriteLine("PRIVMSG " + channel + " :Server uptime: " + day + " days " + hour + " hours " + minute + " minutes " + second + " seconds.");
                                 writer.Flush();
                             }
@@ -420,12 +421,69 @@ namespace IndigoIRC
         }
         private void IIRC(CommandArgs args)
         {
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            String channel = config.AppSettings.Settings["channel"].Value;
+            NetworkStream stream = this.irc.GetStream();
+            StreamReader reader = new StreamReader(stream);
+            writer = new StreamWriter(stream);
+            
             if (args.Parameters.Count == 0)
             {
-                args.Player.SendMessage("hi", 96, 245, 88);
+                args.Player.SendMessage("==== IndigoIRC Commands ====", 96, 245, 88);
+                args.Player.SendMessage("/irc - Display this menu", 96, 245, 88);
+                args.Player.SendMessage("/irc say <message> - Posts a message to your connected channel", 96, 245, 88);
+                args.Player.SendMessage("/irc sendraw <command> - Sends a raw command that is sent to IRC exactly as it's written", 96, 245, 88);
             }
+            else if (args.Parameters[0].Equals("say") && (args.Player.Group.HasPermission("indigoirc.irc.say") || args.Player.Group.HasPermission("indigoirc.*")))
+            {
+                if (args.Parameters.Count >= 2)
+                {
+                    String message = ":" + String.Join(" ", args.Parameters);
+                    message = ReplaceFirst(message, "say ", "");
+                    writer.WriteLine("PRIVMSG " + channel + " " + message);
+                    writer.Flush();
+                }
+                else
+                {
+                    args.Player.SendErrorMessage("Not enough parameters. Do /irc say <message>");
+                }
+            }
+            else if (args.Parameters[0].Equals("sendraw") && (args.Player.Group.HasPermission("indigoirc.irc.sendraw") || args.Player.Group.HasPermission("indigoirc.*")))
+            {
+                if (args.Parameters.Count >= 2)
+                {
+                    String irccommand = args.Parameters[1];
+                    args.Parameters.RemoveAt(0);
+                    args.Parameters.RemoveAt(0);
+                    String message = String.Join(" ", args.Parameters);
+                    //message = ReplaceFirst(message, "sendraw ", "");
+                    //Console.WriteLine(irccommand + " " + message);
+                    writer.WriteLine(irccommand + " " + message);
+                    writer.Flush();
+                    
+                }
+                else
+                {
+                    args.Player.SendErrorMessage("Not enough parameters. Do /irc sendraw <command>");
+                }
+            }
+                
+        }
+        private TimeSpan CalcTime(TimeSpan currentTime)
+        {
+            double initSeconds = this.initTime.TotalSeconds;
+            double finalSeconds = currentTime.TotalSeconds;
+            double remainingSeconds = finalSeconds - initSeconds;
+            Console.WriteLine(finalSeconds + " - " + initSeconds + " = " + remainingSeconds);
+            TimeSpan remainingTime = TimeSpan.FromSeconds(finalSeconds - initSeconds);
+
+
+            return remainingTime;
         }
     }
+
     public class Player
     {
         public int Index { get; set; }

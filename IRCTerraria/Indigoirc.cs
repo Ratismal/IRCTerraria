@@ -56,7 +56,7 @@ namespace IndigoIRC
 
         public override Version Version
         {
-            get { return new Version("1.5.6"); }
+            get { return new Version("1.5.7"); }
         }
         public override string Name
         {
@@ -173,9 +173,9 @@ namespace IndigoIRC
                             if (splitInput[3].Equals(":.list"))
                             {
                                 //TSPlayer player = TShock.Players[args.Who];
-                                TSPlayer[] players = TShock.Players;
                                 
-                                if (players[0] != null)
+                                
+                                if (Players.Count > 0)
                                 {
                                    // Console.WriteLine(players[0].Name);
 
@@ -202,6 +202,7 @@ namespace IndigoIRC
                                 }
                                 else
                                 {
+                                    //Console.WriteLine("Detected no one online");
                                     playerList = "Online (0/" + TShock.Config.MaxSlots + "): ";
                                 }
                                 writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
@@ -251,7 +252,41 @@ namespace IndigoIRC
                                     Chat(Color.LightPink, message);
                                 }
                             }
+                            
 
+                        }
+                        else if (splitInput[1].Equals("JOIN"))
+                        {
+                            int loc = splitInput[0].IndexOf("!");
+                                //Console.WriteLine("Location of \"!~\": " + loc);
+                                //Console.WriteLine(splitInput[0]);
+                            if (loc > 0)
+                            {
+                                splitInput[0] = splitInput[0].Substring(0, loc);
+                                splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
+                                Console.WriteLine(splitInput[0]);
+                            }
+                            //Console.WriteLine(nick);
+                            if (!splitInput[0].Equals(nick))
+                            {
+                                Chat(Color.LightPink, "[IRC] " + splitInput[0] + " joined the channel.");
+                            }
+                        }
+                        else if (splitInput[1].Equals("QUIT"))
+                        {
+                            int loc = splitInput[0].IndexOf("!");
+                            //Console.WriteLine("Location of \"!~\": " + loc);
+                            
+                            if (loc > 0)
+                            {
+                                splitInput[0] = splitInput[0].Substring(0, loc);
+                                splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
+                                //Console.WriteLine(splitInput[0]);
+                            }
+                            if (!splitInput[0].Equals(nick))
+                            {
+                                Chat(Color.LightPink, "[IRC] " + splitInput[0] + " left the channel.");
+                            }
                         }
                         else
                         {
@@ -476,7 +511,7 @@ namespace IndigoIRC
             double initSeconds = this.initTime.TotalSeconds;
             double finalSeconds = currentTime.TotalSeconds;
             double remainingSeconds = finalSeconds - initSeconds;
-            Console.WriteLine(finalSeconds + " - " + initSeconds + " = " + remainingSeconds);
+            //Console.WriteLine(finalSeconds + " - " + initSeconds + " = " + remainingSeconds);
             TimeSpan remainingTime = TimeSpan.FromSeconds(finalSeconds - initSeconds);
 
 

@@ -56,7 +56,7 @@ namespace IndigoIRC
 
         public override Version Version
         {
-            get { return new Version("1.5.7"); }
+            get { return new Version("1.6.0"); }
         }
         public override string Name
         {
@@ -99,6 +99,7 @@ namespace IndigoIRC
             }
             else //config file exists, starting connection thread
             {
+                updateConfig();
                 ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
                 configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
                 Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
@@ -133,6 +134,21 @@ namespace IndigoIRC
             String name = config.AppSettings.Settings["name"].Value;
             String channel = config.AppSettings.Settings["channel"].Value;
             String user = config.AppSettings.Settings["user"].Value;
+            String ingameFormatting = config.AppSettings.Settings["ingameFormatting"].Value;
+            String ingameColour = config.AppSettings.Settings["ingameColour"].Value;
+            String[] colorCodes = ingameColour.Split(new Char[] { ';' });
+            String commandPrefix = config.AppSettings.Settings["commandPrefix"].Value;
+            Color color = Color.LightPink;
+            int[] colours = new int[] {1};
+            Byte r = 255;
+            Byte g = 117;
+            Byte b = 117;
+            if (colorCodes.Length == 3)
+            {
+                r = Convert.ToByte(colorCodes[0]);
+                g = Convert.ToByte(colorCodes[1]);
+                b = Convert.ToByte(colorCodes[2]);
+            }
             NetworkStream stream;
             StreamReader reader;
             Console.WriteLine("[IndigoIRC] Connecting to " + host + ":" + port + " on channel " + channel);
@@ -210,7 +226,7 @@ namespace IndigoIRC
                                 //writer.WriteLine("PRIVMSG " + channel + " :Online (3/8): XXXXXXXXXX, XXXXXXX, XXXX");
                                 writer.Flush();
                             }
-                            else if (splitInput[3].Equals(":.uptime"))
+                            else if (splitInput[3].Equals(":" + commandPrefix + "uptime"))
                             {
                                 //DateTime.Now.
                                 TimeSpan currTime = DateTime.Now.TimeOfDay;
@@ -223,12 +239,12 @@ namespace IndigoIRC
                                 writer.WriteLine("PRIVMSG " + channel + " :Server uptime: " + day + " days " + hour + " hours " + minute + " minutes " + second + " seconds.");
                                 writer.Flush();
                             }
-                            else if (splitInput[3].Equals(":.version"))
+                            else if (splitInput[3].Equals(":" + commandPrefix + "version"))
                             {
                                 writer.WriteLine("PRIVMSG " + channel + " :IndigoIRC is running on version: " + Version);
                                 writer.Flush();
                             }
-                            else if (splitInput[3].Equals(":.help"))
+                            else if (splitInput[3].Equals(":" + commandPrefix + "help"))
                             {
                                 writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
                                 writer.Flush();
@@ -240,16 +256,20 @@ namespace IndigoIRC
                                 if (loc > 0)
                                 {
                                     splitInput[0] = splitInput[0].Substring(0, loc);
+                                    //splitInput[3] = ReplaceFirst(splitInput[3], ":", "");
+                                    splitInput[0] = ingameFormatting.Replace("%NAME%", splitInput[0]);
                                     String message = String.Join(" ", splitInput);
                                     message = ReplaceFirst(message, "PRIVMSG", "");
                                     message = ReplaceFirst(message, channel, "");
-                                    message = ReplaceFirst(message, "   :", "> ");
-                                    Console.WriteLine(message);
+                                    message = ReplaceFirst(message, "   :", "");
+                                    
                                     //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
                                     //writer.Flush();
                                     message = ReplaceFirst(message, ":", "");
-                                    message = "[IRC] " + message;
-                                    Chat(Color.LightPink, message);
+                                    //message = ingameFormatting.Replace("%NAME%",  + message;
+                                    Console.WriteLine(message);
+                                    //Chat(color, message);
+                                    TSPlayer.All.SendMessage(message, r, g, b);
                                 }
                             }
                             
@@ -285,6 +305,7 @@ namespace IndigoIRC
                             }
                             if (!splitInput[0].Equals(nick))
                             {
+
                                 Chat(Color.LightPink, "[IRC] " + splitInput[0] + " left the channel.");
                             }
                         }
@@ -301,6 +322,16 @@ namespace IndigoIRC
                                 string JoinString = "JOIN " + channel;
                                 writer.WriteLine(JoinString);
                                 writer.Flush();
+                                break;
+                            case "002":
+                                if (!config.AppSettings.Settings["password"].Value.Equals(""))
+                                {
+                                    string authenticate = "PRIVMSG NickServ :IDENTIFY " + config.AppSettings.Settings["nick"].Value + " " + config.AppSettings.Settings["password"].Value;
+                                    Console.WriteLine(authenticate);
+                                    writer.WriteLine(authenticate);
+                                    writer.Flush();
+                                }
+                                
                                 break;
                             default:
                                 break;
@@ -371,7 +402,8 @@ namespace IndigoIRC
             {
                 //args.Handled = true;
                 string words = args.Text;
-                words = player.Name + "> " + words;
+                words = config.AppSettings.Settings["ircFormatting"].Value + words;
+                words = words.Replace("%NAME%", player.Name);
 
                 writer.WriteLine("PRIVMSG " + channel + " :" + words);
                 writer.Flush();
@@ -383,6 +415,7 @@ namespace IndigoIRC
              * specified.
              */
             TSPlayer.All.SendMessage(message, color);
+            //TSPlayer.All.SendMessage(message, )
         }
         private void CreateConfig()
         {
@@ -401,8 +434,65 @@ namespace IndigoIRC
             config.AppSettings.Settings.Add("name", "IIRCTerraria");
             config.AppSettings.Settings.Add("channel", "#examplechannel");
             config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
+            config.AppSettings.Settings.Add("password", "");
+            config.AppSettings.Settings.Add("ingameFormatting", "[IRC] %NAME%> ");
+            config.AppSettings.Settings.Add("ingameColour", "255;117;117");
+            config.AppSettings.Settings.Add("ircFormatting", "%NAME%> ");
+            config.AppSettings.Settings.Add("commandPrefix", ".");
             config.Save(ConfigurationSaveMode.Full);
             return;
+        }
+        public void updateConfig()
+        {
+            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
+            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
+            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            //config.AppSettings.Settings["host"]
+            if (!config.AppSettings.Settings.AllKeys.Contains("host"))
+            {
+                config.AppSettings.Settings.Add("host", "irc.esper.net");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("port"))
+            {
+                config.AppSettings.Settings.Add("port", "6667");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("nick"))
+            {
+                config.AppSettings.Settings.Add("nick", "IndigoIRC_Client");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("name"))
+            {
+                config.AppSettings.Settings.Add("name", "IIRCTerraria");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("channel"))
+            {
+                config.AppSettings.Settings.Add("channel", "#examplechannel");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("user"))
+            {
+                config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("password"))
+            {
+                config.AppSettings.Settings.Add("password", "");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("ingameFormatting"))
+            {
+                config.AppSettings.Settings.Add("ingameFormatting", "[IRC] %NAME%> ");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("ingameColour"))
+            {
+                config.AppSettings.Settings.Add("ingameColour", "255;117;117");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("ircFormatting"))
+            {
+                config.AppSettings.Settings.Add("ircFormatting", "%NAME%> ");
+            }
+            if (!config.AppSettings.Settings.AllKeys.Contains("commandPrefix"))
+            {
+                config.AppSettings.Settings.Add("commandPrefix", ".");
+            }
+            config.Save(ConfigurationSaveMode.Full);
         }
         public string ReplaceFirst(string text, string search, string replace)
         {
@@ -439,7 +529,13 @@ namespace IndigoIRC
             TSPlayer player = TShock.Players[args.Who];
 
             String words = player.Name + " left the game.";
-            
+
+            if (player == null)
+            {
+                //args.Handled = true;
+                return;
+            }
+
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
             lock (Players)

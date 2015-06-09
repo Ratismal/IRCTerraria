@@ -82,5 +82,101 @@ namespace IRCTerraria {
                 this["channel"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("mypassword")]
+        public string auth {
+            get {
+                return ((string)(this["auth"]));
+            }
+            set {
+                this["auth"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("USER IndigoIRCBot 0 * :IndigoIRC")]
+        public string user {
+            get {
+                return ((string)(this["user"]));
+            }
+            set {
+                this["user"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("[IRC] %NAME%> ")]
+        public string ingameFormatting {
+            get {
+                return ((string)(this["ingameFormatting"]));
+            }
+            set {
+                this["ingameFormatting"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("255;117;117")]
+        public string ingameColour {
+            get {
+                return ((string)(this["ingameColour"]));
+            }
+            set {
+                this["ingameColour"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("%NAME%> ")]
+        public string ircFormatting {
+            get {
+                return ((string)(this["ircFormatting"]));
+            }
+            set {
+                this["ircFormatting"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(".")]
+        public string commandPrefix {
+            get {
+                return ((string)(this["commandPrefix"]));
+            }
+            set {
+                this["commandPrefix"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("#@")]
+        public string ignoredPrefixes {
+            get {
+                return ((string)(this["ignoredPrefixes"]));
+            }
+            set {
+                this["ignoredPrefixes"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("!$")]
+        public string ignoredIrcPrefixes {
+            get {
+                return ((string)(this["ignoredIrcPrefixes"]));
+            }
+            set {
+                this["ignoredIrcPrefixes"] = value;
+            }
+        }
     }
 }

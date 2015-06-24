@@ -1,62 +1,30 @@
 ﻿using System;
-using System.Linq;
-using System.ComponentModel;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.IO;
 using System.Configuration;
+using System.IO;
+using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
-
-using TShockAPI;
-using TShockAPI.Extensions;
-
 using Terraria;
-using TerrariaApi;
 using TerrariaApi.Server;
-
-using IrcDotNet;
+using TShockAPI;
 
 namespace IndigoIRC
 {
     [ApiVersion(1, 17)]
     public class IndigoIRC : TerrariaPlugin
     {
+	    public Configuration config;
+
         private int chatIndex;
-        public static List<Player> Players = new List<Player>();
-        //public static TimeSpan currentTime = new TimeSpan();
-        //private String host = ConfigurationManager.AppSettings["host"];
-        //private int port = Convert.ToInt32(ConfigurationManager.AppSettings["port"]);
-        //private String pass = null;
-        //private String nick = ConfigurationManager.AppSettings["nick"];
-        //private String user = "HUTerraria";
-        //private String name = ConfigurationManager.AppSettings["name"];
-        //private String channel = ConfigurationManager.AppSettings["channel"];
-        //private bool ssl = false;
-        /*
-        private String host = IndigoIRC.Default.host;
-        private int port = IndigoIRC.Default.port;
-        private String nick = IndigoIRC.Default.nick;
-        private String name = IndigoIRC.Default.name;
-        private String channel = IndigoIRC.Default.channel;
-        */
         public static StreamWriter writer;
-        /*
-        NetworkStream stream;
-        StreamReader reader;
-        private String host;
-        private int port;
-        private String channel;
-        private String name;
-        private String nick;
-         * */
-        public TimeSpan initTime;
+        public DateTime startTime;
 
         private TcpClient irc;
 
         public override Version Version
         {
-            get { return new Version("1.6.0"); }
+            get { return new Version("2.0"); }
         }
         public override string Name
         {
@@ -75,22 +43,21 @@ namespace IndigoIRC
         {
             Order = 0;
 
-            //chatIndex = 0;
         }
+
         public override void Initialize()
         {
-            Console.Write("Initializing IndigoIRC\n");
+            Console.WriteLine("Initializing IndigoIRC");
 
             //Store current time to a variable, used later for calculating uptime
-            this.initTime = DateTime.Now.TimeOfDay;
-            this.initTime = this.initTime + TimeSpan.FromDays(DateTime.Now.Day);
-            //Console.WriteLine(this.initTime.Days);
-            //Console.WriteLine(this.initTime.Hours);
-            //Console.WriteLine(this.initTime.Minutes);
-            //Console.WriteLine(this.initTime.Seconds);
+	        startTime = DateTime.Now;
 
             Commands.ChatCommands.Add(new Command("indigoirc.irc", IIRC, "irc"));
-            
+
+	        if (!Directory.Exists("IIRC"))
+	        {
+		        Directory.CreateDirectory("IIRC");
+	        }
             
             //creates config file and bypasses starting the connection thread if config file doesn't exist
             if (!File.Exists("IIRC/IndigoIRC.settings"))
@@ -99,244 +66,177 @@ namespace IndigoIRC
             }
             else //config file exists, starting connection thread
             {
-                updateConfig();
-                ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-                configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-                Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+                UpdateConfig();
+	            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap
+	            {
+		            ExeConfigFilename = "IIRC/IndigoIRC.settings"
+	            };
+	            config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
 
                 ServerApi.Hooks.ServerChat.Register(this, OnChat);
                 ServerApi.Hooks.ServerJoin.Register(this, OnJoin);
                 ServerApi.Hooks.ServerLeave.Register(this, OnLeave);
 
-                System.Threading.Thread myThread;
-                myThread = new Thread(new ThreadStart(connect));
+	            var myThread = new Thread(Connect) {IsBackground = true};
 
-                myThread.IsBackground = true;
-                Console.WriteLine("[IndigoIRC] Starting IRC thread");
+	            Console.WriteLine("[IndigoIRC] Starting IRC thread");
 
                 myThread.Start();
             }
-            
-
         }
-        private void connect()
+
+        private void Connect()
         {
-            
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-
-            //Thread.Sleep(8000);
-
-            String host = config.AppSettings.Settings["host"].Value;
+            string host = config.AppSettings.Settings["host"].Value;
             int port = Convert.ToInt32(config.AppSettings.Settings["port"].Value);
-            String nick = config.AppSettings.Settings["nick"].Value;
-            String name = config.AppSettings.Settings["name"].Value;
-            String channel = config.AppSettings.Settings["channel"].Value;
-            String user = config.AppSettings.Settings["user"].Value;
-            String ingameFormatting = config.AppSettings.Settings["ingameFormatting"].Value;
-            String ingameColour = config.AppSettings.Settings["ingameColour"].Value;
-            String[] colorCodes = ingameColour.Split(new Char[] { ';' });
-            String commandPrefix = config.AppSettings.Settings["commandPrefix"].Value;
-            Color color = Color.LightPink;
-            int[] colours = new int[] {1};
-            Byte r = 255;
-            Byte g = 117;
-            Byte b = 117;
+            string nick = config.AppSettings.Settings["nick"].Value;
+            string channel = config.AppSettings.Settings["channel"].Value;
+            string user = config.AppSettings.Settings["user"].Value;
+	        string password = config.AppSettings.Settings["auth"].Value;
+            string ingameFormatting = config.AppSettings.Settings["ingameFormatting"].Value;
+            string ingameColour = config.AppSettings.Settings["ingameColour"].Value;
+	        string[] colorCodes = ingameColour.Split(';');
+            string commandPrefix = config.AppSettings.Settings["commandPrefix"].Value;
+            byte r = 255;
+            byte g = 117;
+            byte b = 117;
             if (colorCodes.Length == 3)
             {
                 r = Convert.ToByte(colorCodes[0]);
                 g = Convert.ToByte(colorCodes[1]);
                 b = Convert.ToByte(colorCodes[2]);
             }
-            NetworkStream stream;
-            StreamReader reader;
-            Console.WriteLine("[IndigoIRC] Connecting to " + host + ":" + port + " on channel " + channel);
-            //Console.Write(host);
-            String inputLine;
-            try
-            {
+
+	        Console.WriteLine("[IndigoIRC] Connecting to " + host + ":" + port + " on channel " + channel);
+
+	        try
+			{
+				irc = new TcpClient(host, port);
+				var stream = irc.GetStream();
+				var reader = new StreamReader(stream);
+				writer = new StreamWriter(stream);
+				if (!string.IsNullOrEmpty(password))
+				{
+					writer.WriteLine("PASS " + password);
+					writer.Flush();
+				}
+				writer.WriteLine("NICK " + nick);
+				writer.Flush();
+				writer.WriteLine(user);
+				writer.Flush();
+
                 while (true)
                 {
-                    this.irc = new TcpClient(host, port);
-                    stream = this.irc.GetStream();
-                    reader = new StreamReader(stream);
-                    writer = new StreamWriter(stream);
-                    writer.WriteLine("NICK " + nick);
-                    writer.Flush();
-                    writer.WriteLine(user);
-                    writer.Flush();
-                    while ((inputLine = reader.ReadLine()) != null)
+	                string inputLine;
+	                while ((inputLine = reader.ReadLine()) != null)
                     {
-                        //Console.WriteLine("<-" + inputLine);
-
                         // Split the lines sent from the server by spaces. This seems the easiest way to parse them.
-                        string[] splitInput = inputLine.Split(new Char[] { ' ' });
+	                    string[] splitInput = inputLine.Split(' ');
 
                         if (splitInput[0] == "PING")
                         {
-                            string PongReply = splitInput[1];
-                            //Console.WriteLine("->PONG " + PongReply);
-                            writer.WriteLine("PONG " + PongReply);
+                            string pongReply = splitInput[1];
+                            writer.WriteLine("PONG " + pongReply);
                             writer.Flush();
-                            //continue;
                         }
                         else if (splitInput[1].Equals("PRIVMSG"))
                         {
-                            String message2 = splitInput[3];
-                            //Console.WriteLine(message2 + "hi");
-                            String playerList;
-                            if (splitInput[3].Equals(":.list"))
-                            {
-                                //TSPlayer player = TShock.Players[args.Who];
-                                
-                                
-                                if (Players.Count > 0)
-                                {
-                                   // Console.WriteLine(players[0].Name);
+	                        if (splitInput[3].Equals(":" + commandPrefix + "list"))
+	                        {
+		                        List<string> players = TShock.Players.Where(p => p != null && p.Active)
+			                        .Select(p => p.Name).ToList();
+		                        var playerList = String.Format("({0}/{1}):", players.Count(), TShock.Config.MaxSlots);
+		                        writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
 
-                                    playerList = "Online (" + Players.Count + "/" + TShock.Config.MaxSlots + "): ";
-                                    for (int i = 0; i <= Players.Count - 1; i++)
-                                    {
-                                        //TSPlayer player = TShock.Players.
-                                        int id = Players[i].Index;
-                                        TSPlayer currentPlayer = TShock.Players[id];
-                                        if (i == Players.Count - 1)
-                                        {
-                                            playerList = playerList + currentPlayer.Name;
-                                        }
-                                        else
-                                        {
-                                            playerList = playerList + currentPlayer.Name + ", ";
-                                        }
-                                    }
-                                    //playerList = "Online (" + players.Length + "/8): ";
-                                    //for (int i = 0; i <= players.Length - 1; i++)
-                                    //{
-                                    //    playerList = playerList + players[i].Name + ", ";
-                                    //}
-                                }
-                                else
-                                {
-                                    //Console.WriteLine("Detected no one online");
-                                    playerList = "Online (0/" + TShock.Config.MaxSlots + "): ";
-                                }
-                                writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
-                                
-                                //writer.WriteLine("PRIVMSG " + channel + " :Online (3/8): XXXXXXXXXX, XXXXXXX, XXXX");
-                                writer.Flush();
-                            }
-                            else if (splitInput[3].Equals(":" + commandPrefix + "uptime"))
-                            {
-                                //DateTime.Now.
-                                TimeSpan currTime = DateTime.Now.TimeOfDay;
-                                currTime = currTime + TimeSpan.FromDays(DateTime.Now.Day);
-                                TimeSpan remainingTime = CalcTime(currTime);
-                                int day = remainingTime.Days;
-                                int hour = remainingTime.Hours;
-                                int minute = remainingTime.Minutes;
-                                int second = remainingTime.Seconds;
-                                writer.WriteLine("PRIVMSG " + channel + " :Server uptime: " + day + " days " + hour + " hours " + minute + " minutes " + second + " seconds.");
-                                writer.Flush();
-                            }
-                            else if (splitInput[3].Equals(":" + commandPrefix + "version"))
-                            {
-                                writer.WriteLine("PRIVMSG " + channel + " :IndigoIRC is running on version: " + Version);
-                                writer.Flush();
-                            }
-                            else if (splitInput[3].Equals(":" + commandPrefix + "help"))
-                            {
-                                writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
-                                writer.Flush();
-                            }
-                            else if (splitInput[0].Contains("!"))
-                            {
-                                int loc = splitInput[0].IndexOf("!");
-                                //Console.WriteLine("Location of \"!~\": " + loc);
-                                if (loc > 0)
-                                {
-                                    splitInput[0] = splitInput[0].Substring(0, loc);
-                                    //splitInput[3] = ReplaceFirst(splitInput[3], ":", "");
-                                    splitInput[0] = ingameFormatting.Replace("%NAME%", splitInput[0]);
-                                    String message = String.Join(" ", splitInput);
-                                    message = ReplaceFirst(message, "PRIVMSG", "");
-                                    message = ReplaceFirst(message, channel, "");
-                                    message = ReplaceFirst(message, "   :", "");
-                                    
-                                    //writer.WriteLine("PRIVMSG " + channel + " :Hello there");
-                                    //writer.Flush();
-                                    message = ReplaceFirst(message, ":", "");
-                                    //message = ingameFormatting.Replace("%NAME%",  + message;
-                                    Console.WriteLine(message);
-                                    //Chat(color, message);
-                                    TSPlayer.All.SendMessage(message, r, g, b);
-                                }
-                            }
-                            
+		                        playerList = String.Join(", ", players);
+		                        writer.WriteLine("PRIVMSG " + channel + " :" + playerList);
+		                        writer.Flush();
+	                        }
+	                        else if (splitInput[3].Equals(":" + commandPrefix + "uptime"))
+	                        {
+		                        TimeSpan uptime = DateTime.Now - startTime;
+		                        string format = TimeSpanFormatter(uptime);
+		                        writer.WriteLine("PRIVMSG " + channel + " :Server uptime: " + format);
+		                        writer.Flush();
+	                        }
+	                        else if (splitInput[3].Equals(":" + commandPrefix + "version"))
+	                        {
+		                        writer.WriteLine("PRIVMSG " + channel + " :IndigoIRC is running on version: " + Version);
+		                        writer.Flush();
+	                        }
+	                        else if (splitInput[3].Equals(":" + commandPrefix + "help"))
+	                        {
+		                        writer.WriteLine("PRIVMSG " + channel + " :Valid commands: help, list, version");
+		                        writer.Flush();
+	                        }
+	                        else if (splitInput[0].Contains("!"))
+	                        {
+		                        int loc = splitInput[0].IndexOf("!", StringComparison.Ordinal);
+		                        if (loc > 0)
+		                        {
+			                        splitInput[0] = splitInput[0].Substring(0, loc);
+			                        if (!IgnoreIrc(ReplaceFirst(splitInput[3], ":", "")))
+			                        {
+				                        splitInput[0] = ingameFormatting.Replace("%NAME%", splitInput[0]);
+				                        string message = String.Join(" ", splitInput);
+				                        message = ReplaceFirst(message, "PRIVMSG", "");
+				                        message = ReplaceFirst(message, channel, "");
+				                        message = ReplaceFirst(message, "   :", "");
 
+				                        message = ReplaceFirst(message, ":", "");
+				                        TSPlayer.All.SendMessage(message, r, g, b);
+			                        }
+		                        }
+	                        }
                         }
                         else if (splitInput[1].Equals("JOIN"))
                         {
-                            int loc = splitInput[0].IndexOf("!");
-                                //Console.WriteLine("Location of \"!~\": " + loc);
-                                //Console.WriteLine(splitInput[0]);
-                            if (loc > 0)
-                            {
-                                splitInput[0] = splitInput[0].Substring(0, loc);
-                                splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
-                                Console.WriteLine(splitInput[0]);
-                            }
-                            //Console.WriteLine(nick);
-                            if (!splitInput[0].Equals(nick))
-                            {
-                                Chat(Color.LightPink, "[IRC] " + splitInput[0] + " joined the channel.");
-                            }
+	                        int loc = splitInput[0].IndexOf("!", StringComparison.Ordinal);
+	                        if (loc > 0)
+	                        {
+		                        splitInput[0] = splitInput[0].Substring(0, loc);
+		                        splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
+	                        }
+	                        if (!splitInput[0].Equals(nick))
+	                        {
+		                        Chat(Color.LightPink, "[IRC] " + splitInput[0] + " joined the channel.");
+	                        }
                         }
                         else if (splitInput[1].Equals("QUIT"))
                         {
-                            int loc = splitInput[0].IndexOf("!");
-                            //Console.WriteLine("Location of \"!~\": " + loc);
-                            
-                            if (loc > 0)
-                            {
-                                splitInput[0] = splitInput[0].Substring(0, loc);
-                                splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
-                                //Console.WriteLine(splitInput[0]);
-                            }
-                            if (!splitInput[0].Equals(nick))
-                            {
-
-                                Chat(Color.LightPink, "[IRC] " + splitInput[0] + " left the channel.");
-                            }
+	                        int loc = splitInput[0].IndexOf("!", StringComparison.Ordinal);
+	                        if (loc > 0)
+	                        {
+		                        splitInput[0] = splitInput[0].Substring(0, loc);
+		                        splitInput[0] = ReplaceFirst(splitInput[0], ":", "");
+	                        }
+	                        if (!splitInput[0].Equals(nick))
+	                        {
+		                        Chat(Color.LightPink, "[IRC] " + splitInput[0] + " left the channel.");
+	                        }
                         }
                         else
                         {
-                            Console.WriteLine(inputLine);
+	                        //Console.WriteLine(inputLine);
+	                        //log raw output
                         }
-                        switch (splitInput[1])
+	                    switch (splitInput[1])
                         {
-                            // This is the 'raw' number, put out by the server. Its the first one
-                            // so I figured it'd be the best time to send the join command.
-                            // I don't know if this is standard practice or not.
                             case "001":
-                                string JoinString = "JOIN " + channel;
-                                writer.WriteLine(JoinString);
+                                string joinString = "JOIN " + channel;
+                                writer.WriteLine(joinString);
                                 writer.Flush();
                                 break;
                             case "002":
-                                if (!config.AppSettings.Settings["password"].Value.Equals(""))
+                                if (!config.AppSettings.Settings["auth"].Value.Equals(""))
                                 {
                                     string authenticate = "PRIVMSG NickServ :IDENTIFY " + config.AppSettings.Settings["nick"].Value + " " + config.AppSettings.Settings["password"].Value;
-                                    Console.WriteLine(authenticate);
                                     writer.WriteLine(authenticate);
                                     writer.Flush();
                                 }
                                 
                                 break;
-                            default:
-                                break;
                         }
-
                     }
                     // Close all streams
                     writer.Close();
@@ -349,58 +249,44 @@ namespace IndigoIRC
             {
                 // Show the exception, sleep for a while and try to establish a new connection to irc server
                 Console.WriteLine(e.ToString());
-                //Thread.Sleep(5000);
-                string[] argv = { };
-                connect();
+                Connect();
             }
-
         }
 
         protected override void Dispose(bool disposing)
         {
-            /* Ensure that we are actually disposing.
-             */
             if (disposing)
             {
-                /* Using the .Deregister function, we remove our method
-                 * from the hook.
-                 */
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChat);
                 ServerApi.Hooks.ServerJoin.Deregister(this, OnJoin);
                 ServerApi.Hooks.ServerLeave.Deregister(this, OnLeave);
             }
             base.Dispose(disposing);
         }
+
         private void OnChat(ServerChatEventArgs args)
         {
-            /* This checks to see if the chat has already been handled. If it has, the method will return
-             * and the player's chat will not be managed by this plugin
-             * Always make sure to check the chat to see if it has been handled
-             */
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-            String channel = config.AppSettings.Settings["channel"].Value;
+            string channel = config.AppSettings.Settings["channel"].Value;
 
             if (args.Handled)
             {
                 return;
             }
 
-            /* Get the player who sent this request.
-             */
             TSPlayer player = TShock.Players[args.Who];
 
-            /* If the player object is null we want to return to avoid NullReference Exceptions
-             */
             if (player == null)
             {
-                //args.Handled = true;
                 return;
             }
+
+	        if (Ignore(args.Text))
+	        {
+		        return;
+	        }
+
             if (!args.Text.StartsWith("/"))
             {
-                //args.Handled = true;
                 string words = args.Text;
                 words = config.AppSettings.Settings["ircFormatting"].Value + words;
                 words = words.Replace("%NAME%", player.Name);
@@ -409,44 +295,46 @@ namespace IndigoIRC
                 writer.Flush();
             }
         }
+
         private void Chat(Color color, string message)
         {
-            /* Send all players the message in the color
-             * specified.
-             */
             TSPlayer.All.SendMessage(message, color);
-            //TSPlayer.All.SendMessage(message, )
         }
+
         private void CreateConfig()
         {
-            
             Console.WriteLine("[IndigoIRC] No config file found!");
             Console.WriteLine("[IndigoIRC] Generating config file from defaults.");
             Console.WriteLine("[IndigoIRC] Please go to IIRC/IndigoIRC.settings and change the settings. (REQUIRED)");
             Console.WriteLine("[IndigoIRC] This plugin will be activated upon the next reboot.");
-            //File.Create("IIRC/IndigoIRC.settings");
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+	        ExeConfigurationFileMap configMap = new ExeConfigurationFileMap
+	        {
+		        ExeConfigFilename = "IIRC/IndigoIRC.settings"
+	        };
+	        config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             config.AppSettings.Settings.Add("host", "irc.esper.net");
             config.AppSettings.Settings.Add("port", "6667");
             config.AppSettings.Settings.Add("nick", "IndigoIRC_Client");
             config.AppSettings.Settings.Add("name", "IIRCTerraria");
             config.AppSettings.Settings.Add("channel", "#examplechannel");
             config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
-            config.AppSettings.Settings.Add("password", "");
+            config.AppSettings.Settings.Add("auth", "mypassword");
             config.AppSettings.Settings.Add("ingameFormatting", "[IRC] %NAME%> ");
             config.AppSettings.Settings.Add("ingameColour", "255;117;117");
             config.AppSettings.Settings.Add("ircFormatting", "%NAME%> ");
             config.AppSettings.Settings.Add("commandPrefix", ".");
+			config.AppSettings.Settings.Add("ignoredPrefixes", "#@");
+	        config.AppSettings.Settings.Add("ignoredIrcPrefixes", "!$");
             config.Save(ConfigurationSaveMode.Full);
-            return;
         }
-        public void updateConfig()
+
+        public void UpdateConfig()
         {
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+	        ExeConfigurationFileMap configMap = new ExeConfigurationFileMap
+	        {
+		        ExeConfigFilename = "IIRC/IndigoIRC.settings"
+	        };
+	        config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             //config.AppSettings.Settings["host"]
             if (!config.AppSettings.Settings.AllKeys.Contains("host"))
             {
@@ -492,72 +380,67 @@ namespace IndigoIRC
             {
                 config.AppSettings.Settings.Add("commandPrefix", ".");
             }
+	        if (!config.AppSettings.Settings.AllKeys.Contains("ignoredPrefixes"))
+	        {
+				config.AppSettings.Settings.Add("ignoredPrefixes", "#@");
+			}
+	        if (!config.AppSettings.Settings.AllKeys.Contains("ignoredIrcPrefixes"))
+	        {
+		        config.AppSettings.Settings.Add("ignoredIrcPrefixes", "!$");
+	        }
             config.Save(ConfigurationSaveMode.Full);
         }
-        public string ReplaceFirst(string text, string search, string replace)
+
+		/// <summary>
+		/// Replaces the first occurence of a string with another character
+		/// </summary>
+		/// <param name="text">String to search in</param>
+		/// <param name="search">String to replace</param>
+		/// <param name="replace">New string</param>
+		/// <returns></returns>
+        private string ReplaceFirst(string text, string search, string replace)
         {
-            int pos = text.IndexOf(search);
+            int pos = text.IndexOf(search, StringComparison.Ordinal);
             if (pos < 0)
             {
                 return text;
             }
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
+
         private void OnJoin(JoinEventArgs args)
         {
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-            String channel = config.AppSettings.Settings["channel"].Value;
+            string channel = config.AppSettings.Settings["channel"].Value;
 
             TSPlayer player = TShock.Players[args.Who];
 
-            String words = player.Name + " joined the game.";
+            string words = player.Name + " joined the game.";
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
-            lock (Players)
-                Players.Add(new Player(args.Who));
         }
+
         private void OnLeave(LeaveEventArgs args)
         {
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-            String channel = config.AppSettings.Settings["channel"].Value;
-            
-            TSPlayer player = TShock.Players[args.Who];
+			string channel = config.AppSettings.Settings["channel"].Value;
 
-            String words = player.Name + " left the game.";
+			TSPlayer player = TShock.Players[args.Who];
 
-            if (player == null)
-            {
-                //args.Handled = true;
-                return;
-            }
+			if (player == null)
+			{
+				return;
+			}
+
+            string words = player.Name + " left the game.";
 
             writer.WriteLine("PRIVMSG " + channel + " :" + words);
             writer.Flush();
-            lock (Players)
-            {
-                for (int i = 0; i < Players.Count; i++)
-                {
-                    if (Players[i].Index == args.Who)
-                    {
-                        Players.RemoveAt(i);
-                        break; //Found the player, break.
-                    }
-                }
-            }
         }
+
         private void IIRC(CommandArgs args)
         {
-            ExeConfigurationFileMap configMap = new ExeConfigurationFileMap();
-            configMap.ExeConfigFilename = "IIRC/IndigoIRC.settings";
-            Configuration config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-            String channel = config.AppSettings.Settings["channel"].Value;
-            NetworkStream stream = this.irc.GetStream();
-            StreamReader reader = new StreamReader(stream);
+			string channel = config.AppSettings.Settings["channel"].Value;
+            NetworkStream stream = irc.GetStream();
             writer = new StreamWriter(stream);
             
             if (args.Parameters.Count == 0)
@@ -571,7 +454,7 @@ namespace IndigoIRC
             {
                 if (args.Parameters.Count >= 2)
                 {
-                    String message = ":" + String.Join(" ", args.Parameters);
+                    string message = ":" + String.Join(" ", args.Parameters);
                     message = ReplaceFirst(message, "say ", "");
                     writer.WriteLine("PRIVMSG " + channel + " " + message);
                     writer.Flush();
@@ -585,45 +468,44 @@ namespace IndigoIRC
             {
                 if (args.Parameters.Count >= 2)
                 {
-                    String irccommand = args.Parameters[1];
+                    string irccommand = args.Parameters[1];
                     args.Parameters.RemoveAt(0);
                     args.Parameters.RemoveAt(0);
-                    String message = String.Join(" ", args.Parameters);
-                    //message = ReplaceFirst(message, "sendraw ", "");
-                    //Console.WriteLine(irccommand + " " + message);
+                    string message = String.Join(" ", args.Parameters);
                     writer.WriteLine(irccommand + " " + message);
                     writer.Flush();
-                    
                 }
                 else
                 {
                     args.Player.SendErrorMessage("Not enough parameters. Do /irc sendraw <command>");
                 }
             }
-                
         }
-        private TimeSpan CalcTime(TimeSpan currentTime)
-        {
-            double initSeconds = this.initTime.TotalSeconds;
-            double finalSeconds = currentTime.TotalSeconds;
-            double remainingSeconds = finalSeconds - initSeconds;
-            //Console.WriteLine(finalSeconds + " - " + initSeconds + " = " + remainingSeconds);
-            TimeSpan remainingTime = TimeSpan.FromSeconds(finalSeconds - initSeconds);
 
+	    private string TimeSpanFormatter(TimeSpan time)
+	    {
+			int day = time.Days;
+			int hour = time.Hours;
+			int minute = time.Minutes;
+			int second = time.Seconds;
 
-            return remainingTime;
-        }
-    }
+		    return String.Format("{0} day{4} {1} hour{5} {2} minute{6} {3} second{7}",
+			    day, hour, minute, second, Suffix(day), Suffix(hour), Suffix(minute), Suffix(second));
+	    }
 
-    public class Player
-    {
-        public int Index { get; set; }
-        public TSPlayer TSPlayer { get { return TShock.Players[Index]; } }
-        //Add other variables here - MAKE SURE YOU DON'T MAKE THEM STATIC
+	    private string Suffix(int num)
+	    {
+		    return num == 0 || num > 1 ? "s" : "";
+	    }
 
-        public Player(int index)
-        {
-            Index = index;
-        }
+	    private bool Ignore(string text)
+	    {
+		    return config.AppSettings.Settings["ignoredPrefixes"].Value.Any(c => text.StartsWith(c.ToString()));
+	    }
+
+	    private bool IgnoreIrc(string text)
+	    {
+		    return config.AppSettings.Settings["ignoredIrcPrefixes"].Value.Any(c => text.StartsWith(c.ToString()));
+	    }
     }
 }

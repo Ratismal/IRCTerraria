@@ -1,5 +1,5 @@
 # IRCTerraria
 
-Irc. In terraria.
+IRC. In terraria.
 
 Also known as IndigoIRC

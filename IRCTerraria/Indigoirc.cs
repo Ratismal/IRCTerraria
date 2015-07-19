@@ -11,7 +11,7 @@ using TShockAPI;
 
 namespace IndigoIRC
 {
-    [ApiVersion(1, 17)]
+    [ApiVersion(1, 19)]
     public class IndigoIRC : TerrariaPlugin
     {
 	    public Configuration config;
@@ -19,6 +19,9 @@ namespace IndigoIRC
         private int chatIndex;
         public static StreamWriter writer;
         public DateTime startTime;
+
+		private KeyValueConfigurationCollection Settings { get; set; }
+		private string Channel { get; set; }
 
         private TcpClient irc;
 
@@ -42,7 +45,6 @@ namespace IndigoIRC
             : base(game)
         {
             Order = 0;
-
         }
 
         public override void Initialize()
@@ -72,6 +74,8 @@ namespace IndigoIRC
 		            ExeConfigFilename = "IIRC/IndigoIRC.settings"
 	            };
 	            config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+	            Settings = config.AppSettings.Settings;
+	            Channel = Settings["channel"].Value;
 
                 ServerApi.Hooks.ServerChat.Register(this, OnChat);
                 ServerApi.Hooks.ServerJoin.Register(this, OnJoin);
@@ -87,16 +91,17 @@ namespace IndigoIRC
 
         private void Connect()
         {
-            string host = config.AppSettings.Settings["host"].Value;
-            int port = Convert.ToInt32(config.AppSettings.Settings["port"].Value);
-            string nick = config.AppSettings.Settings["nick"].Value;
-            string channel = config.AppSettings.Settings["channel"].Value;
-            string user = config.AppSettings.Settings["user"].Value;
-	        string password = config.AppSettings.Settings["auth"].Value;
-            string ingameFormatting = config.AppSettings.Settings["ingameFormatting"].Value;
-            string ingameColour = config.AppSettings.Settings["ingameColour"].Value;
+            string host = Settings["host"].Value;
+            int port = Convert.ToInt32(Settings["port"].Value);
+            string nick = Settings["nick"].Value;
+            string channel = Settings["channel"].Value;
+	        string user = String.Format("USER {0} 0 * :{1}", nick, Settings["name"].Value);
+	        string password = Settings["auth"].Value;
+            string ingameFormatting = Settings["ingameFormatting"].Value;
+            string ingameColour = Settings["ingameColour"].Value;
 	        string[] colorCodes = ingameColour.Split(';');
-            string commandPrefix = config.AppSettings.Settings["commandPrefix"].Value;
+            string commandPrefix = Settings["commandPrefix"].Value;
+
             byte r = 255;
             byte g = 117;
             byte b = 117;
@@ -215,11 +220,6 @@ namespace IndigoIRC
 		                        Chat(Color.LightPink, "[IRC] " + splitInput[0] + " left the channel.");
 	                        }
                         }
-                        else
-                        {
-	                        //Console.WriteLine(inputLine);
-	                        //log raw output
-                        }
 	                    switch (splitInput[1])
                         {
                             case "001":
@@ -247,7 +247,6 @@ namespace IndigoIRC
 
             catch (Exception e)
             {
-                // Show the exception, sleep for a while and try to establish a new connection to irc server
                 Console.WriteLine(e.ToString());
                 Connect();
             }
@@ -266,8 +265,6 @@ namespace IndigoIRC
 
         private void OnChat(ServerChatEventArgs args)
         {
-            string channel = config.AppSettings.Settings["channel"].Value;
-
             if (args.Handled)
             {
                 return;
@@ -291,7 +288,7 @@ namespace IndigoIRC
                 words = config.AppSettings.Settings["ircFormatting"].Value + words;
                 words = words.Replace("%NAME%", player.Name);
 
-                writer.WriteLine("PRIVMSG " + channel + " :" + words);
+                writer.WriteLine("PRIVMSG " + Channel + " :" + words);
                 writer.Flush();
             }
         }
@@ -314,10 +311,9 @@ namespace IndigoIRC
 	        config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
             config.AppSettings.Settings.Add("host", "irc.esper.net");
             config.AppSettings.Settings.Add("port", "6667");
-            config.AppSettings.Settings.Add("nick", "IndigoIRC_Client");
+            config.AppSettings.Settings.Add("nick", "IndigoIRCBot");
             config.AppSettings.Settings.Add("name", "IIRCTerraria");
             config.AppSettings.Settings.Add("channel", "#examplechannel");
-            config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
             config.AppSettings.Settings.Add("auth", "mypassword");
             config.AppSettings.Settings.Add("ingameFormatting", "[IRC] %NAME%> ");
             config.AppSettings.Settings.Add("ingameColour", "255;117;117");
@@ -335,7 +331,6 @@ namespace IndigoIRC
 		        ExeConfigFilename = "IIRC/IndigoIRC.settings"
 	        };
 	        config = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
-            //config.AppSettings.Settings["host"]
             if (!config.AppSettings.Settings.AllKeys.Contains("host"))
             {
                 config.AppSettings.Settings.Add("host", "irc.esper.net");
@@ -346,19 +341,15 @@ namespace IndigoIRC
             }
             if (!config.AppSettings.Settings.AllKeys.Contains("nick"))
             {
-                config.AppSettings.Settings.Add("nick", "IndigoIRC_Client");
+                config.AppSettings.Settings.Add("nick", "IndigoIRCBot");
             }
             if (!config.AppSettings.Settings.AllKeys.Contains("name"))
             {
-                config.AppSettings.Settings.Add("name", "IIRCTerraria");
+				config.AppSettings.Settings.Add("name", "IIRCTerraria");
             }
             if (!config.AppSettings.Settings.AllKeys.Contains("channel"))
             {
                 config.AppSettings.Settings.Add("channel", "#examplechannel");
-            }
-            if (!config.AppSettings.Settings.AllKeys.Contains("user"))
-            {
-                config.AppSettings.Settings.Add("user", "USER IndigoIRCBot 0 * :IndigoIRC");
             }
             if (!config.AppSettings.Settings.AllKeys.Contains("password"))
             {
@@ -410,20 +401,16 @@ namespace IndigoIRC
 
         private void OnJoin(JoinEventArgs args)
         {
-            string channel = config.AppSettings.Settings["channel"].Value;
-
             TSPlayer player = TShock.Players[args.Who];
 
             string words = player.Name + " joined the game.";
 
-            writer.WriteLine("PRIVMSG " + channel + " :" + words);
+            writer.WriteLine("PRIVMSG " + Channel + " :" + words);
             writer.Flush();
         }
 
         private void OnLeave(LeaveEventArgs args)
         {
-			string channel = config.AppSettings.Settings["channel"].Value;
-
 			TSPlayer player = TShock.Players[args.Who];
 
 			if (player == null)
@@ -433,14 +420,13 @@ namespace IndigoIRC
 
             string words = player.Name + " left the game.";
 
-            writer.WriteLine("PRIVMSG " + channel + " :" + words);
+            writer.WriteLine("PRIVMSG " + Channel + " :" + words);
             writer.Flush();
         }
 
         private void IIRC(CommandArgs args)
         {
-			string channel = config.AppSettings.Settings["channel"].Value;
-            NetworkStream stream = irc.GetStream();
+			NetworkStream stream = irc.GetStream();
             writer = new StreamWriter(stream);
             
             if (args.Parameters.Count == 0)
@@ -456,7 +442,7 @@ namespace IndigoIRC
                 {
                     string message = ":" + String.Join(" ", args.Parameters);
                     message = ReplaceFirst(message, "say ", "");
-                    writer.WriteLine("PRIVMSG " + channel + " " + message);
+                    writer.WriteLine("PRIVMSG " + Channel + " " + message);
                     writer.Flush();
                 }
                 else
@@ -477,7 +463,7 @@ namespace IndigoIRC
                 }
                 else
                 {
-                    args.Player.SendErrorMessage("Not enough parameters. Do /irc sendraw <command>");
+                    args.Player.SendErrorMessage("Not enough parameters. Try /irc sendraw <command>");
                 }
             }
         }

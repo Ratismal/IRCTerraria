@@ -11,7 +11,7 @@ using TShockAPI;
 
 namespace IndigoIRC
 {
-    [ApiVersion(1, 19)]
+    [ApiVersion(1, 20)]
     public class IndigoIRC : TerrariaPlugin
     {
 	    public Configuration config;
